@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { overrideStep } from "../utils/overrides";
 
 interface Candidate {
   id: string;
@@ -9,6 +10,8 @@ interface Candidate {
   post_interview_score: number;
   rating: string;
   reference_status: string;
+  reference_source: string;
+  reference_locked: boolean;
   offer_status: string;
   onboarding_status: string;
 }
@@ -16,16 +19,19 @@ interface Candidate {
 export default function Candidates() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [buttonState, setButtonState] = useState<
+    Record<string, { sending: boolean; sent: boolean }>
+  >({});
 
   useEffect(() => {
     fetchData();
 
     // 🔄 realtime subscription
     const channel = supabase
-      .channel('candidates-changes')
+      .channel("candidates-changes")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'candidates' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "candidates" },
         () => fetchData()
       )
       .subscribe();
@@ -38,36 +44,29 @@ export default function Candidates() {
   const fetchData = async () => {
     try {
       const { data, error } = await supabase
-        .from('candidates')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("candidates")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setCandidates(data || []);
     } catch (error) {
-      console.error('Error fetching candidates:', error);
+      console.error("Error fetching candidates:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const runAutomation = async (route: string, candidateId: string) => {
-    try {
-      const res = await fetch(
-        `https://awqqvtrouljkwxjqmgzh.supabase.co/functions/v1/${route}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ candidateId }),
-        }
-      );
-      if (!res.ok) throw new Error(`${route} automation failed`);
-      const data = await res.json();
-      console.log(`${route} result:`, data);
-      // realtime subscription will auto-update statuses
-    } catch (err) {
-      console.error(err);
-    }
+  const setButton = (
+    candidateId: string,
+    step: string,
+    sending: boolean,
+    sent: boolean
+  ) => {
+    setButtonState((prev) => ({
+      ...prev,
+      [`${candidateId}-${step}`]: { sending, sent },
+    }));
   };
 
   if (loading) {
@@ -101,10 +100,10 @@ export default function Candidates() {
 
               <div className="flex gap-2 mt-4 mb-4">
                 <span className="inline-block px-3 py-1 text-xs font-semibold rounded-lg bg-green-100 text-green-800">
-                  Pre: {candidate.pre_interview_score ?? '-'}
+                  Pre: {candidate.pre_interview_score ?? "-"}
                 </span>
                 <span className="inline-block px-3 py-1 text-xs font-semibold rounded-lg bg-blue-100 text-blue-800">
-                  Post: {candidate.post_interview_score ?? '-'}
+                  Post: {candidate.post_interview_score ?? "-"}
                 </span>
                 <span className="inline-block px-3 py-1 text-xs font-semibold rounded-lg bg-gray-100 text-gray-800">
                   Rating: {candidate.rating}
@@ -118,23 +117,25 @@ export default function Candidates() {
               </div>
 
               <div className="mt-4 flex gap-2">
+                {/* ✅ Manual override for Reference */}
                 <button
-                  onClick={() => runAutomation('reference-check', candidate.id)}
-                  className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                  onClick={async () => {
+                    setButton(candidate.id, "reference", true, false);
+                    await overrideStep(candidate.id, "reference", "passed");
+                    setButton(candidate.id, "reference", false, true);
+                  }}
+                  disabled={
+                    buttonState[`${candidate.id}-reference`]?.sending ||
+                    candidate.reference_locked
+                  }
+                  className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Reference Check
-                </button>
-                <button
-                  onClick={() => runAutomation('offer-draft', candidate.id)}
-                  className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Offer Draft
-                </button>
-                <button
-                  onClick={() => runAutomation('onboard', candidate.id)}
-                  className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700"
-                >
-                  Onboard
+                  {buttonState[`${candidate.id}-reference`]?.sending
+                    ? "Sending..."
+                    : buttonState[`${candidate.id}-reference`]?.sent ||
+                      candidate.reference_locked
+                    ? "Reference Sent!"
+                    : "Reference Check"}
                 </button>
               </div>
             </div>
