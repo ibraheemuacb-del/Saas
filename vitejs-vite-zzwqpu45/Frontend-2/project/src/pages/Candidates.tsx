@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { overrideStep } from "../utils/overrides";
+import { callEdgeFunction } from "../utils/edgeFunctions";
+
 
 interface Candidate {
   id: string;
@@ -116,28 +117,63 @@ export default function Candidates() {
                 <p>Onboarding: {candidate.onboarding_status}</p>
               </div>
 
-              <div className="mt-4 flex gap-2">
-                {/* ✅ Manual override for Reference */}
-                <button
-                  onClick={async () => {
-                    setButton(candidate.id, "reference", true, false);
-                    await overrideStep(candidate.id, "reference", "passed");
-                    setButton(candidate.id, "reference", false, true);
-                  }}
-                  disabled={
-                    buttonState[`${candidate.id}-reference`]?.sending ||
-                    candidate.reference_locked
-                  }
-                  className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {buttonState[`${candidate.id}-reference`]?.sending
-                    ? "Sending..."
-                    : buttonState[`${candidate.id}-reference`]?.sent ||
-                      candidate.reference_locked
-                    ? "Reference Sent!"
-                    : "Reference Check"}
-                </button>
-              </div>
+             <div className="mt-4 flex gap-2">
+  {/* ✅ Reference Check */}
+  <button
+    onClick={async () => {
+      setButton(candidate.id, "reference", true, false);
+      await callEdgeFunction(candidate.id, "reference", "passed");
+      setButton(candidate.id, "reference", false, true);
+    }}
+    disabled={
+      buttonState[`${candidate.id}-reference`]?.sending ||
+      candidate.reference_locked
+    }
+    className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {buttonState[`${candidate.id}-reference`]?.sending
+      ? "Sending..."
+      : buttonState[`${candidate.id}-reference`]?.sent ||
+        candidate.reference_locked
+      ? "Reference Sent!"
+      : "Reference Check"}
+  </button>
+
+  {/* ✅ Offer Check */}
+  <button
+    onClick={async () => {
+      setButton(candidate.id, "offer", true, false);
+      await callEdgeFunction(candidate.id, "offer", "passed");
+      setButton(candidate.id, "offer", false, true);
+    }}
+    disabled={buttonState[`${candidate.id}-offer`]?.sending}
+    className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {buttonState[`${candidate.id}-offer`]?.sending
+      ? "Sending..."
+      : buttonState[`${candidate.id}-offer`]?.sent
+      ? "Offer Sent!"
+      : "Offer Check"}
+  </button>
+
+  {/* ✅ Onboarding Check */}
+  <button
+    onClick={async () => {
+      setButton(candidate.id, "onboarding", true, false);
+      await callEdgeFunction(candidate.id, "onboarding", "failed");
+      setButton(candidate.id, "onboarding", false, true);
+    }}
+    disabled={buttonState[`${candidate.id}-onboarding`]?.sending}
+    className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {buttonState[`${candidate.id}-onboarding`]?.sending
+      ? "Sending..."
+      : buttonState[`${candidate.id}-onboarding`]?.sent
+      ? "Onboarding Sent!"
+      : "Onboarding Check"}
+  </button>
+</div>
+
             </div>
           ))}
         </div>
