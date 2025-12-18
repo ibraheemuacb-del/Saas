@@ -32,7 +32,11 @@ export default function AddJob() {
       if (status === "Published" && jobId) {
         await postToJobBoards({
           id: jobId,
-          ...formData,
+          title: formData.title,
+          department: formData.department,
+          location: formData.location,
+          salary_range: formData.salary_range,
+          description: formData.description,
           status,
         });
 
