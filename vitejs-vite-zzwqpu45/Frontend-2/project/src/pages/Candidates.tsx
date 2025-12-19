@@ -94,7 +94,8 @@ export default function Candidates() {
           {candidates.map((candidate) => (
             <div
               key={candidate.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:-translate-y-[1px] hover:shadow-md hover:border-gray-300
+"
             >
               <h3 className="font-bold text-gray-900">{candidate.name}</h3>
               <p className="text-sm text-gray-600">{candidate.role}</p>
@@ -129,7 +130,7 @@ export default function Candidates() {
       buttonState[`${candidate.id}-reference`]?.sending ||
       candidate.reference_locked
     }
-    className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    className="px-3 py-1 text-xs rounded-[30px] bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
   >
     {buttonState[`${candidate.id}-reference`]?.sending
       ? "Sending..."
@@ -147,7 +148,7 @@ export default function Candidates() {
       setButton(candidate.id, "offer", false, true);
     }}
     disabled={buttonState[`${candidate.id}-offer`]?.sending}
-    className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    className="px-3 py-1 text-xs rounded-[30px] bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
   >
     {buttonState[`${candidate.id}-offer`]?.sending
       ? "Sending..."
@@ -164,7 +165,7 @@ export default function Candidates() {
       setButton(candidate.id, "onboarding", false, true);
     }}
     disabled={buttonState[`${candidate.id}-onboarding`]?.sending}
-    className="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    className="px-3 py-1 text-xs rounded-[30px] bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
   >
     {buttonState[`${candidate.id}-onboarding`]?.sending
       ? "Sending..."

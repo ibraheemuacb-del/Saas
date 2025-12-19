@@ -103,7 +103,7 @@ export default function CandidateProgressCard({
           style={{ transformOrigin: "center" }}
           initial={{ scaleX: 1, opacity: 1 }}
           animate={{ scaleX: isComplete ? 0 : 1, opacity: isComplete ? 0 : 1 }}
-          transition={{ delay: 0.1, duration: 1.2, ease: "easeInOut" }}
+          transition={{ delay: 0.1, duration: 1.3, ease: "easeInOut" }}
         >
           {isComplete ? (
             <div className="w-full h-full bg-green-600 rounded-full" />
@@ -131,7 +131,7 @@ export default function CandidateProgressCard({
             opacity: isComplete ? 1 : 0,
             scale: isComplete ? 1 : 0.6,
           }}
-          transition={{ delay: 0.85, duration: 0.55, ease: "easeOut" }}
+          transition={{ delay: 1.05, duration: 0.5, ease: "easeOut" }}
         >
           <div className="h-8 w-8 rounded-full bg-green-600 flex items-center justify-center shadow">
             <CheckCircle className="h-6 w-6 text-white" />
