@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { overrideStep } from "../utils/overrides"; // still here if you want to keep it for other flows
+import { overrideStep } from "../utils/overrides"; 
+
+
+// ⭐ Add missing imports
+import TopCandidatesSection from "../components/TopCandidatesSection";
+import AITopPickCard from "../components/AITopPickCard";
 
 interface Offer {
   id: string;
@@ -78,15 +83,9 @@ export default function Offers() {
       .from("candidates")
       .select("*");
 
-    if (offersError) {
-      console.error("Error loading offers:", offersError);
-    }
-    if (jobsError) {
-      console.error("Error loading jobs:", jobsError);
-    }
-    if (candidatesError) {
-      console.error("Error loading candidates:", candidatesError);
-    }
+    if (offersError) console.error("Error loading offers:", offersError);
+    if (jobsError) console.error("Error loading jobs:", jobsError);
+    if (candidatesError) console.error("Error loading candidates:", candidatesError);
 
     const jobMap: Record<string, Job> = {};
     jobsData?.forEach((j) => {
@@ -111,7 +110,7 @@ export default function Offers() {
     }));
   };
 
-  // ⭐ Real send-offer pipeline: call Edge Function + update DB
+  // ⭐ Real send-offer pipeline
   const sendOfferDraft = async (offer: Offer) => {
     const job = jobs[offer.job_id];
     const candidate = candidates[offer.candidate_id];
@@ -126,16 +125,13 @@ export default function Offers() {
       return;
     }
 
-    // Prefer final_email_body; fall back to raw_template_body
     const body =
       offer.final_email_body ||
       offer.raw_template_body ||
       "Offer email body is not configured yet.";
 
-    // Basic subject – you can refine or template this later
     const subject = `Offer for ${job.title}`;
 
-    // Call your Edge Function (rename "send-offer-email" if needed)
     const { data, error } = await supabase.functions.invoke(
       "send-offer-email",
       {
@@ -143,7 +139,6 @@ export default function Offers() {
           to: candidate.email,
           subject,
           body,
-          // helpful context for the function
           offer_id: offer.id,
           job_id: offer.job_id,
           candidate_id: offer.candidate_id,
@@ -157,7 +152,6 @@ export default function Offers() {
       return;
     }
 
-    // Update offer status + sent_at locally in DB
     const { error: updateError } = await supabase
       .from("offers")
       .update({
@@ -168,128 +162,165 @@ export default function Offers() {
 
     if (updateError) {
       console.error("Error updating offer after send:", updateError);
-      // don't alert here; email already sent, we can recover state later
     }
 
-    // Reload so UI reflects new status
     await loadData();
   };
 
   if (loading) {
     return <div className="p-6">Loading offers...</div>;
   }
+return (
+<div className="w-full max-w-[1600px] mx-auto py-6">
 
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Job Offers</h1>
 
-      {offers.length === 0 ? (
-        <p className="text-gray-600">No offers yet.</p>
-      ) : (
-        <ul className="space-y-4">
-          {offers.map((offer) => {
-            const job = jobs[offer.job_id];
-            const candidate = candidates[offer.candidate_id];
 
-            return (
-              <li
-                key={offer.id}
-                className="
-                  bg-white rounded-xl border border-gray-200 shadow-sm p-5
-                  transition-all duration-200
-                  hover:-translate-y-[1px] hover:shadow-md hover:border-gray-300
-                "
-              >
-                {/* Job + Candidate */}
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {job?.title || "Unknown Job"}
-                </h2>
 
-                <p className="text-gray-600">
-                  Candidate: {candidate?.name || "Unknown Candidate"}
-                </p>
 
-                <p className="text-gray-600">
-                  Email: {candidate?.email || "N/A"}
-                </p>
 
-                <p className="text-gray-600">Department: {job?.department}</p>
-                <p className="text-gray-600">Location: {job?.location}</p>
-                <p className="text-gray-600">Salary: {job?.salary_range}</p>
 
-                {/* Offer Status */}
-                <div className="mt-3 text-sm text-gray-500">
-                  Status:{" "}
-                  <span className="font-medium text-gray-800">
-                    {offer.status}
-                  </span>{" "}
-                  • Created {new Date(offer.created_at).toLocaleString()}
+
+    <h1 className="text-3xl font-bold text-gray-900 mb-6">Job Offers</h1>
+
+    {/* ⭐ Top 3 Candidates */}
+    <TopCandidatesSection />
+
+    {/* ⭐ AI's Top Pick */}
+    <AITopPickCard />
+
+    {/* Existing Offer List */}
+    {offers.length === 0 ? (
+      <p className="text-gray-600">No offers yet.</p>
+    ) : (
+      <ul className="space-y-4">
+        {offers.map((offer) => {
+          const job = jobs[offer.job_id];
+          const candidate = candidates[offer.candidate_id];
+
+          return (
+            <li
+              key={offer.id}
+              className="
+                bg-white rounded-xl border border-gray-200 shadow-sm p-5
+                transition-all duration-200
+                hover:-translate-y-[1px] hover:shadow-md hover:border-gray-300
+              "
+            >
+              {/* Job + Candidate */}
+              <h2 className="text-xl font-semibold text-gray-900">
+                {job?.title || "Unknown Job"}
+              </h2>
+
+              <p className="text-gray-600">
+                Candidate: {candidate?.name || "Unknown Candidate"}
+              </p>
+
+              <p className="text-gray-600">
+                Email: {candidate?.email || "N/A"}
+              </p>
+
+              <p className="text-gray-600">Department: {job?.department}</p>
+              <p className="text-gray-600">Location: {job?.location}</p>
+              <p className="text-gray-600">Salary: {job?.salary_range}</p>
+
+              {/* Offer Status */}
+              <div className="mt-3 text-sm text-gray-500">
+                Status:{" "}
+                <span className="font-medium text-gray-800">
+                  {offer.status}
+                </span>{" "}
+                • Created {new Date(offer.created_at).toLocaleString()}
+              </div>
+
+              {/* Intent + Sentiment */}
+              {offer.intent && (
+                <div className="mt-1 text-sm text-gray-600">
+                  Intent: {offer.intent} • Sentiment: {offer.sentiment}
                 </div>
+              )}
 
-                {/* Intent + Sentiment */}
-                {offer.intent && (
-                  <div className="mt-1 text-sm text-gray-600">
-                    Intent: {offer.intent} • Sentiment: {offer.sentiment}
-                  </div>
-                )}
+              {/* ACTIONS */}
+              <div className="mt-4 flex gap-3">
+                {/* VIEW OFFER */}
+                <button
+                  onClick={() =>
+                    setViewingOffer({ offer, job, candidate })
+                  }
+                  className="
+                    px-3 py-1 text-xs rounded-[30px]
+                    bg-gray-100 text-gray-800
+                    hover:bg-gray-200 transition
+                  "
+                >
+                  View Offer
+                </button>
 
-                {/* ACTIONS */}
-                <div className="mt-4 flex gap-3">
-                  {/* VIEW OFFER */}
-                  <button
-                    onClick={() =>
-                      setViewingOffer({ offer, job, candidate })
-                    }
-                    className="
-                      px-3 py-1 text-xs rounded-[30px]
-                      bg-gray-100 text-gray-800
-                      hover:bg-gray-200 transition
-                    "
-                  >
-                    View Offer
-                  </button>
+                {/* EDIT OFFER */}
+                <button
+                  onClick={() =>
+                    setEditingOffer({ offer, job, candidate })
+                  }
+                  className="
+                    px-3 py-1 text-xs rounded-[30px]
+                    bg-yellow-100 text-yellow-800
+                    hover:bg-yellow-200 transition
+                  "
+                >
+                  Edit Offer
+                </button>
 
-                  {/* EDIT OFFER */}
-                  <button
-                    onClick={() =>
-                      setEditingOffer({ offer, job, candidate })
-                    }
-                    className="
-                      px-3 py-1 text-xs rounded-[30px]
-                      bg-yellow-100 text-yellow-800
-                      hover:bg-yellow-200 transition
-                    "
-                  >
-                    Edit Offer
-                  </button>
+                {/* SEND OFFER DRAFT */}
+                <button
+                  onClick={async () => {
+                    setButton(offer.id, true, false);
+                    await sendOfferDraft(offer);
+                    setButton(offer.id, false, true);
+                  }}
+                  disabled={buttonState[offer.id]?.sending}
+                  className="
+                    px-3 py-1 text-xs rounded-[30px]
+                    bg-blue-600 text-white
+                    hover:bg-blue-700
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  "
+                >
+                  {buttonState[offer.id]?.sending
+                    ? "Sending..."
+                    : buttonState[offer.id]?.sent
+                    ? "Offer Sent!"
+                    : "Send Offer Draft"}
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    )}
 
-                  {/* SEND OFFER DRAFT - now real email via Edge Function */}
-                  <button
-                    onClick={async () => {
-                      setButton(offer.id, true, false);
-                      await sendOfferDraft(offer);
-                      setButton(offer.id, false, true);
-                    }}
-                    disabled={buttonState[offer.id]?.sending}
-                    className="
-                      px-3 py-1 text-xs rounded-[30px]
-                      bg-blue-600 text-white
-                      hover:bg-blue-700
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                    "
-                  >
-                    {buttonState[offer.id]?.sending
-                      ? "Sending..."
-                      : buttonState[offer.id]?.sent
-                      ? "Offer Sent!"
-                      : "Send Offer Draft"}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+    {/* VIEW OFFER MODAL */}
+    {viewingOffer && (
+      <ViewOfferModal
+        offer={viewingOffer.offer}
+        job={viewingOffer.job}
+        candidate={viewingOffer.candidate}
+        onClose={() => setViewingOffer(null)}
+      />
+    )}
+
+    {/* EDIT OFFER MODAL */}
+    {editingOffer && (
+      <EditOfferModal
+        offer={editingOffer.offer}
+        job={editingOffer.job}
+        candidate={editingOffer.candidate}
+        onClose={() => {
+          setEditingOffer(null);
+          loadData();
+        }}
+      />
+    )}
+  </div>
+);
 
       {/* VIEW OFFER MODAL */}
       {viewingOffer && (
@@ -313,9 +344,16 @@ export default function Offers() {
           }}
         />
       )}
-    </div>
-  );
+    
+  ;
 }
+
+
+
+
+
+
+
 
 /* -----------------------------------------------------------
    VIEW OFFER MODAL
