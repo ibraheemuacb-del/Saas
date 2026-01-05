@@ -1,12 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
+
 import Dashboard from './pages/Dashboard';
 import AddJob from './pages/AddJob';
 import Jobs from './pages/Jobs';
 import Candidates from './pages/Candidates';
 import Offers from './pages/Offers';
 import Onboarding from './pages/Onboarding';
-import KnowledgeUpload from './pages/knowledgeupload'; // ✅ import your new page
+import KnowledgeUpload from './pages/knowledgeupload';
+
+// ⭐ NEW: Draft Offer Page
+import OfferDraftPage from './pages/OfferDraftPage';
 
 function App() {
   return (
@@ -22,7 +26,10 @@ function App() {
             <Route path="/offers" element={<Offers />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
-            {/* ✅ New route for Knowledge Base Upload */}
+            {/* ⭐ NEW: Draft Offer Route */}
+            <Route path="/offers/draft" element={<OfferDraftPage />} />
+
+            {/* Knowledge Base Upload */}
             <Route path="/knowledgeupload" element={<KnowledgeUpload />} />
           </Routes>
         </div>
