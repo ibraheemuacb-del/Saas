@@ -1,11 +1,12 @@
-import { supabase } from "../../../project/src/lib/supabase";
+import { supabase } from "../../../lib/supabase";
 import { parseCv } from "../parsing/parsing";
-import { standardizeCandidate } from "../standardize/index";
+import { standardizeCandidate } from "../../standardize";
 import { enrichCandidate } from "../enrichment/enrichment";
 import { checkCompliance } from "../compliance/index";
 import { scoreCandidate } from "../scoring/index";
-import { runStage, backfillAllStatuses } from "../_shared/supabaseStage";
-import type { Candidate } from "../_shared/types";
+import { runStage, backfillAllStatuses } from "../../_shared/supabaseStage";
+import type { Candidate } from "../../_shared/types";
+
 
 export async function ingestCv(jobId: string, rawCv: any): Promise<Candidate | null> {
   // Stage 1: Parse

@@ -1,4 +1,4 @@
-import { Candidate, addTags } from "../_shared/types";
+import { Candidate, addTags } from "../../_shared/types";
 
 // Adds external signal and infers skills from role keywords
 export async function enrichCandidate(input: Candidate): Promise<Candidate> {

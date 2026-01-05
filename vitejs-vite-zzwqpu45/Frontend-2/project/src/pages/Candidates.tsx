@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { callEdgeFunction } from "../utils/edgeFunctions";
 import CandidateCardNew from "../components/CandidateCardNew";
+import { useNavigate } from "react-router-dom";
 
 interface Candidate {
   id: string;
@@ -33,6 +34,8 @@ export default function Candidates() {
   const [buttonState, setButtonState] = useState<
     Record<string, { sending: boolean; sent: boolean }>
   >({});
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -77,6 +80,17 @@ export default function Candidates() {
       ...prev,
       [`${candidateId}-${step}`]: { sending, sent },
     }));
+  };
+
+  const handleDraftOffer = (candidate: Candidate) => {
+    navigate("/offers/draft", {
+      state: {
+        candidateId: candidate.id,
+        candidateName: candidate.name,
+        role: candidate.role,
+        company: candidate.company,
+      },
+    });
   };
 
   if (loading) {
@@ -127,26 +141,16 @@ export default function Candidates() {
                 transcriptLink={c.transcript_url ?? undefined}
                 profileImage={c.profile_image_url ?? undefined}
                 cvUrl={cvUrl}
+                offerStatus={c.offer_status}
                 loadingStates={{
                   reference: buttonState[`${c.id}-reference`]?.sending,
-                  offer: buttonState[`${c.id}-offer`]?.sending,
-                  onboarding: buttonState[`${c.id}-onboarding`]?.sending,
                 }}
                 onReferenceCheck={async () => {
                   setButton(c.id, "reference", true, false);
                   await callEdgeFunction(c.id, "reference", "passed");
                   setButton(c.id, "reference", false, true);
                 }}
-                onOfferCheck={async () => {
-                  setButton(c.id, "offer", true, false);
-                  await callEdgeFunction(c.id, "offer", "passed");
-                  setButton(c.id, "offer", false, true);
-                }}
-                onOnboardingCheck={async () => {
-                  setButton(c.id, "onboarding", true, false);
-                  await callEdgeFunction(c.id, "onboarding", "failed");
-                  setButton(c.id, "onboarding", false, true);
-                }}
+                onDraftOffer={() => handleDraftOffer(c)}
               />
             );
           })}

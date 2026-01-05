@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { postToJobBoards } from "../../../agents/agents/jobPoster/jobPoster";
-import { ingestCv } from "../../../agents/agents/cvingester/cvingester";
+import { postToJobBoards } from "../agents/agents/jobPoster/jobPoster";
+import { ingestCv } from "../agents/agents/cvingester/cvingester";
 
 export default function AddJob() {
   const navigate = useNavigate();

@@ -1,4 +1,4 @@
-import { Candidate, addTags } from "../_shared/types";
+import { Candidate, addTags } from "../../_shared/types";
 
 const weights = { pre: 0.4, post: 0.6 };
 

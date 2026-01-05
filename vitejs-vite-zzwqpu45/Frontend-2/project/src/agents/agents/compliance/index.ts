@@ -1,4 +1,4 @@
-import { Candidate, addTags } from "../_shared/types";
+import { Candidate, addTags } from "../../_shared/types";
 
 // Required fields and range checks; emits compliance tags
 export async function checkCompliance(input: Candidate): Promise<Candidate> {
