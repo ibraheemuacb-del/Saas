@@ -1,6 +1,6 @@
 import { getCandidate } from "./candidateEngine";
 import { updateStage } from "./stageEngine";
-import type { Stage } from "@/lib/stages";
+import type { Stage } from "../lib/stages";
 
 export async function changeStage(candidateId: string, newStage: Stage) {
   const candidate = await getCandidate(candidateId);

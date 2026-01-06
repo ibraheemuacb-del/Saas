@@ -1,6 +1,6 @@
-import { supabase } from "@/lib/supabase";
-import { STAGES, Stage, ALLOWED_TRANSITIONS, TERMINAL_STAGES } from "@/lib/stages";
-import type { Candidate } from "@/lib/types";
+import { supabase } from "../lib/supabase";
+import { STAGES, Stage, ALLOWED_TRANSITIONS, TERMINAL_STAGES } from "../lib/stages";
+import type { Candidate } from "../lib/types";
 
 import { addTimelineEvent } from "./timelineEngine";
 import { logAudit } from "./auditEngine";
@@ -15,46 +15,48 @@ import { triggerAutomationOnStageChange } from "./automationEngine";
 export async function updateStage(candidate: Candidate, newStage: Stage) {
   const oldStage = candidate.stage;
 
-  // Validate new stage exists
+  // --- Validation: Stage must exist ---
   if (!STAGES.includes(newStage)) {
     throw new Error(`Invalid stage: ${newStage}`);
   }
 
-  // Prevent changes from terminal states
+  // --- Validation: Cannot transition from terminal stages ---
   if (TERMINAL_STAGES.includes(oldStage)) {
     throw new Error(`Cannot change stage from terminal state: ${oldStage}`);
   }
 
-  // Validate allowed transitions
+  // --- Validation: Transition must be allowed ---
   const allowedNext = ALLOWED_TRANSITIONS[oldStage] || [];
   if (!allowedNext.includes(newStage)) {
     throw new Error(`Invalid transition from ${oldStage} to ${newStage}`);
   }
 
-  // Update DB
+  // --- Update DB ---
   const { error: updateError } = await supabase
     .from("candidates")
     .update({ stage: newStage })
     .eq("id", candidate.id);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    throw new Error(`Failed to update stage: ${updateError.message}`);
+  }
 
-  // Timeline event
+  // --- Timeline event ---
   await addTimelineEvent(candidate.id, "stage_change", {
     from: oldStage,
     to: newStage,
   });
 
-  // Audit log
+  // --- Audit log ---
   await logAudit(candidate.id, "stage_change", {
     from: oldStage,
     to: newStage,
   });
 
-  // Automation hook
+  // --- Automation hook ---
   await triggerAutomationOnStageChange(candidate.id, oldStage, newStage);
 
-  // Onboarding trigger when offer is accepted
+  // --- Onboarding trigger when offer is accepted ---
   if (newStage === "offer_accepted") {
     await addTimelineEvent(candidate.id, "onboarding_started", {});
     await logAudit(candidate.id, "onboarding_started", {});

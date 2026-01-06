@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../lib/supabase";
 import { addTimelineEvent } from "./timelineEngine";
 import { logAudit } from "./auditEngine";
 import { updateStage } from "./stageEngine";

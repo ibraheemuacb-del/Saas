@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
-import { supabase } from "../../../supabase/client";
+import { supabase } from "../../lib/supabase";
 
 import {
   Chart as ChartJS,

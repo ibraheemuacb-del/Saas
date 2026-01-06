@@ -1,5 +1,5 @@
-import { supabase } from "@/lib/supabase";
-import type { Candidate } from "@/lib/types";
+import { supabase } from "../lib/supabase";
+import type { Candidate } from "../lib/types";
 
 export async function getCandidate(candidateId: string): Promise<Candidate> {
   const { data, error } = await supabase

@@ -1,11 +1,9 @@
-import Link from "next/link";
 import React, { useState } from "react";
 import "./CandidateCardNew.css";
 import { CheckCircle, FileText, ArrowUp, ArrowDown } from "lucide-react";
 
-import { changeStage, advanceStage } from "@/engine/stageActions";
-import { rejectCandidate } from "@/engine/rejectionEngine";
-import { useRouter } from "next/navigation";
+import { changeStage, advanceStage } from "../engine/stageActions";
+import { rejectCandidate } from "../engine/rejectionEngine";
 
 type Variant = "operational" | "highlight" | "ai";
 
@@ -33,7 +31,6 @@ type CandidateCardProps = {
   cvUrl?: string;
   offerStatus?: OfferStatus;
 
-  // NEW: candidateId required for engine actions + navigation
   candidateId?: string;
 
   onReferenceCheck?: () => void;
@@ -63,7 +60,6 @@ const CandidateCardNew: React.FC<CandidateCardProps> = ({
   onDraftOffer,
   loadingStates = {},
 }) => {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const status = (offerStatus || "").toLowerCase() as OfferStatus;
@@ -73,7 +69,7 @@ const CandidateCardNew: React.FC<CandidateCardProps> = ({
     setLoading(true);
     try {
       await advanceStage(candidateId);
-      router.refresh();
+      window.location.reload();
     } finally {
       setLoading(false);
     }
@@ -84,7 +80,7 @@ const CandidateCardNew: React.FC<CandidateCardProps> = ({
     setLoading(true);
     try {
       await rejectCandidate(candidateId, "Rejected from UI");
-      router.refresh();
+      window.location.reload();
     } finally {
       setLoading(false);
     }
@@ -128,7 +124,7 @@ const CandidateCardNew: React.FC<CandidateCardProps> = ({
   return (
     <div className={`candidate-card-new ${variant === "ai" ? "ai-glow" : ""}`}>
       {/* CLICKABLE AREA */}
-      <Link
+      <a
         href={candidateId ? `/candidate/${candidateId}` : "#"}
         className="block"
       >
@@ -218,9 +214,9 @@ const CandidateCardNew: React.FC<CandidateCardProps> = ({
             </a>
           )}
         </div>
-      </Link>
+      </a>
 
-      {/* OPERATIONAL BUTTONS (NOT CLICKABLE AREA) */}
+      {/* OPERATIONAL BUTTONS */}
       {variant === "operational" && (
         <div className="action-buttons mt-4 flex gap-2 items-center">
           {!referenceCheckPassed && (

@@ -1,4 +1,4 @@
-import type { Stage } from "@/lib/stages";
+import type { Stage } from "../lib/stages";
 
 export async function triggerAutomationOnStageChange(
   candidateId: string,
