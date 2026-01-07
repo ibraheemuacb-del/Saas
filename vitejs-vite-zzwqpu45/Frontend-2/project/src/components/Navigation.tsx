@@ -1,5 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Users, FileText, UserCheck, Home, BookOpen } from 'lucide-react';
+import {
+  Briefcase,
+  Users,
+  FileText,
+  UserCheck,
+  Home,
+  BookOpen,
+  LayoutList,
+} from 'lucide-react';
 
 export default function Navigation() {
   const location = useLocation();
@@ -9,6 +17,7 @@ export default function Navigation() {
     { path: '/add-job', label: 'Add Job', icon: Briefcase },
     { path: '/jobs', label: 'Jobs', icon: FileText },
     { path: '/candidates', label: 'Candidates', icon: Users },
+    { path: '/pipeline', label: 'Pipeline', icon: LayoutList }, // ⭐ NEW
     { path: '/offers', label: 'Offers', icon: FileText },
     { path: '/onboarding', label: 'Onboarding', icon: UserCheck },
     { path: '/knowledgeupload', label: 'Knowledge Base', icon: BookOpen },
