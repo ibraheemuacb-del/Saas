@@ -26,6 +26,8 @@ interface Candidate {
 
   offer_status: string;
   onboarding_status: string;
+
+  stage: string;
 }
 
 export default function Candidates() {
@@ -42,10 +44,18 @@ export default function Candidates() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  function openCandidate(candidate: Candidate) {
-    setSelectedCandidate(candidate);
-    setDrawerOpen(true);
-  }
+async function openCandidate(candidate: Candidate) {
+  // Fetch fresh candidate from DB before opening drawer
+  const { data: freshCandidate } = await supabase
+    .from("candidates")
+    .select("*")
+    .eq("id", candidate.id)
+    .single();
+
+  setSelectedCandidate(freshCandidate);
+  setDrawerOpen(true);
+}
+
 
   function closeDrawer() {
     setDrawerOpen(false);
