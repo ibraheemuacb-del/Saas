@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
-import { supabase } from "../../lib/supabase";
+import { useCandidateStore } from "../../stores/candidateStore";
 
 import {
   Chart as ChartJS,
@@ -11,22 +11,51 @@ import {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-type SourceKey = "linkedin" | "indeed" | "referral";
-
 export default function TrafficChart() {
-  const [sourceCounts, setSourceCounts] = useState({
-    linkedin: 0,
-    indeed: 0,
-    referral: 0,
-  });
+  const candidates = useCandidateStore((s) => s.candidates);
 
-  const [eventCounts, setEventCounts] = useState({
-    screening_passed: 0,
-    interview_completed: 0,
-    offer_sent: 0,
-    offer_accepted: 0,
-    onboarding_complete: 0,
-  });
+  // Count candidate sources
+  const sourceCounts = useMemo(() => {
+    const counts = { linkedin: 0, indeed: 0, referral: 0 };
+
+    candidates.forEach((c) => {
+      const src = c.cand_source?.toLowerCase();
+      if (src && counts[src] !== undefined) {
+        counts[src]++;
+      }
+    });
+
+    return counts;
+  }, [candidates]);
+
+  // Count pipeline stages
+  const pipelineCounts = useMemo(() => {
+    const counts = {
+      screened: 0,
+      interviewed: 0,
+      offer: 0,
+      hired: 0,
+    };
+
+    candidates.forEach((c) => {
+      switch (c.stage) {
+        case "screening":
+          counts.screened++;
+          break;
+        case "interview":
+          counts.interviewed++;
+          break;
+        case "offer":
+          counts.offer++;
+          break;
+        case "offer_accepted":
+          counts.hired++;
+          break;
+      }
+    });
+
+    return counts;
+  }, [candidates]);
 
   // Helper to calculate percentages
   const calcPercent = (value: number, total: number) => {
@@ -34,60 +63,14 @@ export default function TrafficChart() {
     return `${Math.round((value / total) * 100)}%`;
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: candidates } = await supabase
-        .from("candidates")
-        .select("cand_source");
-
-      if (candidates) {
-        const counts = { linkedin: 0, indeed: 0, referral: 0 };
-        candidates.forEach((row: { cand_source: string | null }) => {
-          const src = row.cand_source?.toLowerCase() as SourceKey;
-          if (src && counts[src] !== undefined) {
-            counts[src]++;
-          }
-        });
-        setSourceCounts(counts);
-      }
-
-      const { data: events } = await supabase
-        .from("candidate_events")
-        .select("event_type");
-
-      if (events) {
-        const counts = {
-          screening_passed: 0,
-          interview_completed: 0,
-          offer_sent: 0,
-          offer_accepted: 0,
-          onboarding_complete: 0,
-        };
-
-        events.forEach((row: { event_type: string }) => {
-          const type = row.event_type as keyof typeof counts;
-          if (counts[type] !== undefined) {
-            counts[type]++;
-          }
-        });
-
-        setEventCounts(counts);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Totals for percentages
   const totalSources =
     sourceCounts.linkedin + sourceCounts.indeed + sourceCounts.referral;
 
   const totalPipeline =
-    eventCounts.screening_passed +
-    eventCounts.interview_completed +
-    eventCounts.offer_sent +
-    eventCounts.offer_accepted +
-    eventCounts.onboarding_complete;
+    pipelineCounts.screened +
+    pipelineCounts.interviewed +
+    pipelineCounts.offer +
+    pipelineCounts.hired;
 
   const trafficDonutData = {
     labels: ["LinkedIn", "Indeed", "Referral"],
@@ -109,10 +92,10 @@ export default function TrafficChart() {
     datasets: [
       {
         data: [
-          eventCounts.screening_passed,
-          eventCounts.interview_completed,
-          eventCounts.offer_sent + eventCounts.offer_accepted,
-          eventCounts.onboarding_complete,
+          pipelineCounts.screened,
+          pipelineCounts.interviewed,
+          pipelineCounts.offer,
+          pipelineCounts.hired,
         ],
         backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"],
         borderWidth: 1,
@@ -182,10 +165,10 @@ export default function TrafficChart() {
 
           <div className="mt-6 w-full flex flex-col items-center space-y-2">
             {[
-              { label: "Screened", color: "#3b82f6", value: eventCounts.screening_passed },
-              { label: "Interviewed", color: "#10b981", value: eventCounts.interview_completed },
-              { label: "Offer", color: "#f59e0b", value: eventCounts.offer_sent + eventCounts.offer_accepted },
-              { label: "Hired", color: "#8b5cf6", value: eventCounts.onboarding_complete },
+              { label: "Screened", color: "#3b82f6", value: pipelineCounts.screened },
+              { label: "Interviewed", color: "#10b981", value: pipelineCounts.interviewed },
+              { label: "Offer", color: "#f59e0b", value: pipelineCounts.offer },
+              { label: "Hired", color: "#8b5cf6", value: pipelineCounts.hired },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between w-48">
                 <div className="flex items-center space-x-2">

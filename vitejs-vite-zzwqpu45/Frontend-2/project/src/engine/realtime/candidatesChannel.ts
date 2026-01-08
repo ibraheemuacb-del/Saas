@@ -3,6 +3,8 @@ import { useCandidateStore } from "../../stores/candidateStore";
 import { syncCandidate } from "../sync/syncCandidate";
 
 export function subscribeToCandidateRealtime() {
+  const store = useCandidateStore.getState();
+
   const channel = supabase
     .channel("candidates-realtime")
     .on(
@@ -15,22 +17,26 @@ export function subscribeToCandidateRealtime() {
       async (payload) => {
         const { eventType, new: newRow, old: oldRow } = payload;
 
-        // INSERT → add new candidate to store
+        // ⭐ INSERT → add new candidate to store
         if (eventType === "INSERT" && newRow) {
-          useCandidateStore.getState().updateCandidate(newRow.id, newRow);
+          store.replaceOrInsertCandidate(newRow); // NEW
           return;
         }
 
-        // UPDATE → hydrate from DB to avoid stale UI
+        // ⭐ UPDATE → hydrate from DB to avoid stale UI
         if (eventType === "UPDATE" && newRow) {
-          // Always hydrate from DB to avoid partial updates
+          // Mark loading for smoother UI
+          store.setLoadingState(newRow.id, true); // NEW
+
           await syncCandidate(newRow.id);
+
+          store.setLoadingState(newRow.id, false); // NEW
           return;
         }
 
-        // DELETE → remove from store
+        // ⭐ DELETE → remove from store
         if (eventType === "DELETE" && oldRow) {
-          useCandidateStore.getState().removeCandidate(oldRow.id);
+          store.removeCandidate(oldRow.id);
           return;
         }
       }

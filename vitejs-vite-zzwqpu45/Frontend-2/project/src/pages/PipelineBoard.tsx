@@ -91,14 +91,35 @@ export default function PipelineBoard() {
   return (
     <DndContext onDragEnd={handleDragEnd} onDragMove={handleDragMove}>
       <div className="pipeline-scroll-container flex gap-4 overflow-x-auto scroll-smooth p-4">
-        {STAGES.map((stage) => (
-          <PipelineColumn
-            key={stage}
-            stage={stage}
-            candidates={candidates.filter((c) => c.stage === stage)}
-            onOpen={openCandidate}
-          />
-        ))}
+
+        {STAGES.map((stage) => {
+          const stageCandidates = candidates.filter((c) => c.stage === stage);
+
+          return (
+            <div key={stage} className="flex flex-col min-w-[320px]">
+
+              {/* ⭐ COLUMN HEADER WITH COUNT */}
+              <div className="flex items-center justify-between mb-2 px-1">
+                <h2 className="text-sm font-semibold text-slate-800">
+                  {stage}
+                </h2>
+
+                <span className="inline-flex items-center justify-center text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                  {stageCandidates.length}
+                </span>
+              </div>
+
+              {/* ⭐ COLUMN BODY (PipelineColumn still renders cards) */}
+              <PipelineColumn
+                stage={stage}
+                candidates={stageCandidates}
+                onOpen={openCandidate}
+                isEmpty={stageCandidates.length === 0} // ⭐ NEW
+              />
+
+            </div>
+          );
+        })}
 
         <CandidateDetailDrawer
           candidate={selectedCandidate}

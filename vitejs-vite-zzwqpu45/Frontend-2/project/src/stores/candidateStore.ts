@@ -20,16 +20,31 @@ interface CandidateStore {
 
   // Remove a candidate
   removeCandidate: (id: string) => void;
+
+  // ⭐ NEW: Per-candidate loading states
+  loadingStates: Record<string, boolean>;
+  setLoadingState: (id: string, isLoading: boolean) => void;
+
+  // ⭐ NEW: Replace or insert (used by realtime + sync)
+  replaceOrInsertCandidate: (candidate: Candidate) => void;
+
+  // ⭐ NEW: Bulk replace (future multi-job support)
+  bulkReplace: (list: Candidate[]) => void;
 }
 
 export const useCandidateStore = create<CandidateStore>((set, get) => ({
   candidates: [],
 
+  loadingStates: {}, // ⭐ NEW
+
+  setLoadingState: (id, isLoading) =>
+    set((state) => ({
+      loadingStates: { ...state.loadingStates, [id]: isLoading },
+    })),
+
   setCandidates: (list) => {
     // Deduplicate by ID
-    const unique = Array.from(
-      new Map(list.map((c) => [c.id, c])).values()
-    );
+    const unique = Array.from(new Map(list.map((c) => [c.id, c])).values());
     set({ candidates: unique });
   },
 
@@ -66,5 +81,27 @@ export const useCandidateStore = create<CandidateStore>((set, get) => ({
   removeCandidate: (id) => {
     const filtered = get().candidates.filter((c) => c.id !== id);
     set({ candidates: filtered });
+  },
+
+  // ⭐ NEW: Replace or insert candidate (used by realtime + syncCandidate)
+  replaceOrInsertCandidate: (candidate) =>
+    set((state) => {
+      const exists = state.candidates.some((c) => c.id === candidate.id);
+
+      if (!exists) {
+        return { candidates: [...state.candidates, candidate] };
+      }
+
+      return {
+        candidates: state.candidates.map((c) =>
+          c.id === candidate.id ? { ...c, ...candidate } : c
+        ),
+      };
+    }),
+
+  // ⭐ NEW: Bulk replace (future multi-job support)
+  bulkReplace: (list) => {
+    const unique = Array.from(new Map(list.map((c) => [c.id, c])).values());
+    set({ candidates: unique });
   },
 }));

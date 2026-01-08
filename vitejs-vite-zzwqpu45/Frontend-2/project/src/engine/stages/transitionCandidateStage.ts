@@ -23,8 +23,14 @@ export async function transitionCandidateStage(
   const { id: candidateId, stage: fromStage } = candidate;
   const { reason, triggerAutomations: shouldTrigger = true } = options;
 
+  const store = useCandidateStore.getState();
+
+  // ⭐ Mark candidate as loading
+  store.setLoadingState(candidateId, true);
+
+  // ⭐ Optimistic UI update (unchanged)
   const optimistic = { ...candidate, stage: toStage };
-  useCandidateStore.getState().updateCandidate(candidateId, optimistic);
+  store.updateCandidate(candidateId, optimistic);
 
   const { data, error } = await supabase
     .from("candidates")
@@ -36,12 +42,19 @@ export async function transitionCandidateStage(
     .select("*")
     .single();
 
+  // ⭐ Clear loading state
+  store.setLoadingState(candidateId, false);
+
   if (error || !data) {
-    console.error("Stage transition failed:", error.message);
-    useCandidateStore.getState().updateCandidate(candidateId, candidate); // rollback
+    console.error("Stage transition failed:", error?.message);
+
+    // Rollback to original
+    store.updateCandidate(candidateId, candidate);
+
     return null;
   }
 
+  // ⭐ Timeline event (unchanged)
   await addTimelineEvent({
     candidate_id: candidateId,
     type: "stage_transition",
@@ -52,6 +65,7 @@ export async function transitionCandidateStage(
     },
   });
 
+  // ⭐ Trigger automations (unchanged)
   if (shouldTrigger) {
     await triggerAutomations({
       candidate_id: candidateId,
@@ -59,6 +73,8 @@ export async function transitionCandidateStage(
     });
   }
 
-  useCandidateStore.getState().updateCandidate(candidateId, data);
+  // ⭐ Use new safer merge/insert method
+  store.replaceOrInsertCandidate(data);
+
   return data;
 }

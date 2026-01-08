@@ -4,6 +4,8 @@ import { fetchTimelineForCandidate } from "../../lib/api/timeline";
 import { updateStage } from "../../engine/stageEngine";
 import { fetchNotes, createNote, Note } from "../../lib/api/notes";
 import { supabase } from "../../lib/supabase";
+import { exportOfferToPdf } from "../../engine/offerPdfEngine";
+
 
 // OFFER ENGINE
 import {
@@ -13,6 +15,9 @@ import {
   sendOffer,
   lockOffer,
 } from "../../engine/candidateOfferEngine";
+
+import { useCandidateStore } from "../../stores/candidateStore";
+import { syncCandidate } from "../../engine/sync/syncCandidate";
 
 interface CandidateDetailDrawerProps {
   candidate: any | null;
@@ -42,7 +47,13 @@ export function CandidateDetailDrawer({
   const [offerLoading, setOfferLoading] = useState(false);
   const [offerSaving, setOfferSaving] = useState(false);
 
+const [exporting, setExporting] = useState(false);
+const [exportSuccess, setExportSuccess] = useState(false);
+
+
   const notesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const store = useCandidateStore.getState();
 
   const scrollNotesToBottom = () => {
     if (notesEndRef.current) {
@@ -85,6 +96,40 @@ export function CandidateDetailDrawer({
 
     loadData(candidate.id);
     loadOffer(candidate.id);
+
+    // ⭐ Sync drawer with pipeline store
+    syncCandidate(candidate.id);
+  }, [candidate?.id]);
+
+  // ⭐ Realtime candidate updates (Option C)
+  useEffect(() => {
+    if (!candidate?.id) return;
+
+    const candidateId = candidate.id;
+
+    const channel = supabase
+      .channel(`candidate_realtime_drawer_${candidateId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "candidates",
+          filter: `id=eq.${candidateId}`,
+        },
+        async () => {
+          const updated = await syncCandidate(candidateId);
+          if (updated) {
+            store.replaceOrInsertCandidate(updated);
+            setCurrentStage(updated.stage);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [candidate?.id]);
 
   // Realtime offer updates
@@ -94,7 +139,7 @@ export function CandidateDetailDrawer({
     const candidateId = candidate.id;
 
     const channel = supabase
-      .channel(`candidate_realtime_${candidateId}`)
+      .channel(`candidate_realtime_offer_${candidateId}`)
       .on(
         "postgres_changes",
         {
@@ -117,10 +162,22 @@ export function CandidateDetailDrawer({
     if (!candidate) return;
 
     setCurrentStage(stage);
+
+    // ⭐ Mark loading
+    store.setLoadingState(candidate.id, true);
+
     await updateStage(candidate.id, stage);
+
+    // ⭐ Sync drawer + pipeline
+    const updated = await syncCandidate(candidate.id);
+    if (updated) {
+      store.replaceOrInsertCandidate(updated);
+    }
 
     const events = await fetchTimelineForCandidate(candidate.id);
     setTimeline(events);
+
+    store.setLoadingState(candidate.id, false);
   }
 
   async function handleAddNote() {
@@ -301,157 +358,206 @@ export function CandidateDetailDrawer({
           </div>
         )}
 
-        {/* OFFER TAB */}
-        {activeTab === "offer" && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium mb-2">Offer</h3>
+       {/* OFFER TAB */}
+{activeTab === "offer" && (
+  <div className="space-y-4">
+    <h3 className="text-lg font-medium mb-2">Offer</h3>
 
-            {offerLoading && (
-              <p className="text-gray-500 text-sm">Loading offer...</p>
+    {offerLoading && (
+      <p className="text-gray-500 text-sm">Loading offer...</p>
+    )}
+
+    {!offerLoading && (
+      <>
+        {/* Salary */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Salary
+          </label>
+          <input
+            type="number"
+            value={offer?.salary ?? ""}
+            onChange={(e) =>
+              setOffer((prev: any) => ({
+                ...prev,
+                salary: Number(e.target.value),
+              }))
+            }
+            className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+            placeholder="e.g. 85000"
+            disabled={offer?.locked}
+          />
+        </div>
+
+        {/* Start Date */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={offer?.start_date ?? ""}
+            onChange={(e) =>
+              setOffer((prev: any) => ({
+                ...prev,
+                start_date: e.target.value,
+              }))
+            }
+            className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+            disabled={offer?.locked}
+          />
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Internal Notes
+          </label>
+          <textarea
+            value={offer?.notes ?? ""}
+            onChange={(e) =>
+              setOffer((prev: any) => ({
+                ...prev,
+                notes: e.target.value,
+              }))
+            }
+            className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+            rows={3}
+            disabled={offer?.locked}
+          />
+        </div>
+
+        {/* Offer Content */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Offer Content
+          </label>
+          <textarea
+            value={offer?.content ?? ""}
+            onChange={(e) =>
+              setOffer((prev: any) => ({
+                ...prev,
+                content: e.target.value,
+              }))
+            }
+            className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+            rows={6}
+            disabled={offer?.locked}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-2 pt-2">
+
+          {/* Save Draft */}
+          <button
+            disabled={offerSaving || offer?.locked}
+            onClick={async () => {
+              setOfferSaving(true);
+
+              let updated;
+
+              if (!offer) {
+                updated = await createOfferDraft({
+                  candidateId: candidate.id,
+                  content: offer?.content,
+                  salary: offer?.salary,
+                  startDate: offer?.start_date,
+                  notes: offer?.notes,
+                });
+              } else {
+                updated = await updateOfferDraft(offer.id, {
+                  content: offer.content,
+                  salary: offer.salary,
+                  startDate: offer.start_date,
+                  notes: offer.notes,
+                });
+              }
+
+              setOffer(updated);
+
+              const fresh = await syncCandidate(candidate.id);
+              if (fresh) store.replaceOrInsertCandidate(fresh);
+
+              setOfferSaving(false);
+            }}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+          >
+            {offerSaving ? "Saving..." : "Save Draft"}
+          </button>
+
+          {/* Send Offer */}
+          <button
+            disabled={!offer || offer?.locked}
+            onClick={async () => {
+              const sent = await sendOffer(offer.id);
+              setOffer(sent);
+
+              const fresh = await syncCandidate(candidate.id);
+              if (fresh) store.replaceOrInsertCandidate(fresh);
+            }}
+            className="w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
+          >
+            Send Offer
+          </button>
+
+          {/* Lock Offer */}
+          <button
+            disabled={!offer || offer?.locked}
+            onClick={async () => {
+              const locked = await lockOffer(offer.id);
+              setOffer(locked);
+
+              const fresh = await syncCandidate(candidate.id);
+              if (fresh) store.replaceOrInsertCandidate(fresh);
+            }}
+            className="w-full bg-gray-700 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"
+          >
+            Lock Offer
+          </button>
+
+          {/* ⭐ EXPORT OFFER AS PDF ⭐ */}
+          <button
+            disabled={!offer}
+            onClick={async () => {
+              setExporting(true);
+
+              try {
+                await exportOfferToPdf(candidate.id);
+                setExportSuccess(true);
+
+                setTimeout(() => {
+                  setExportSuccess(false);
+                }, 1500);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className={`
+              w-full py-2 rounded-lg text-sm font-medium transition
+              ${exportSuccess
+                ? "bg-green-600 text-white"
+                : "bg-purple-600 text-white hover:bg-purple-700"}
+            `}
+          >
+            {exporting && !exportSuccess && (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Generating PDF...
+              </span>
             )}
 
-            {!offerLoading && (
-              <>
-                {/* Salary */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Salary
-                  </label>
-                  <input
-                    type="number"
-                    value={offer?.salary ?? ""}
-                    onChange={(e) =>
-                      setOffer((prev: any) => ({
-                        ...prev,
-                        salary: Number(e.target.value),
-                      }))
-                    }
-                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                    placeholder="e.g. 85000"
-                    disabled={offer?.locked}
-                  />
-                </div>
+            {!exporting && !exportSuccess && "Export Offer as PDF"}
 
-                {/* Start Date */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={offer?.start_date ?? ""}
-                    onChange={(e) =>
-                      setOffer((prev: any) => ({
-                        ...prev,
-                        start_date: e.target.value,
-                      }))
-                    }
-                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                    disabled={offer?.locked}
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Internal Notes
-                  </label>
-                  <textarea
-                    value={offer?.notes ?? ""}
-                    onChange={(e) =>
-                      setOffer((prev: any) => ({
-                        ...prev,
-                        notes: e.target.value,
-                      }))
-                    }
-                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                    rows={3}
-                    disabled={offer?.locked}
-                  />
-                </div>
-
-                {/* Offer Content */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Offer Content
-                  </label>
-                  <textarea
-                    value={offer?.content ?? ""}
-                    onChange={(e) =>
-                      setOffer((prev: any) => ({
-                        ...prev,
-                        content: e.target.value,
-                      }))
-                    }
-                    className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                    rows={6}
-                    disabled={offer?.locked}
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 pt-2">
-                  {/* Save Draft */}
-                  <button
-                    disabled={offerSaving || offer?.locked}
-                    onClick={async () => {
-                      setOfferSaving(true);
-
-                      if (!offer) {
-                        const created = await createOfferDraft({
-                          candidateId: candidate.id,
-                          content: offer?.content,
-                          salary: offer?.salary,
-                          startDate: offer?.start_date,
-                          notes: offer?.notes,
-                        });
-                        setOffer(created);
-                      } else {
-                        const updated = await updateOfferDraft(offer.id, {
-                          content: offer.content,
-                          salary: offer.salary,
-                          startDate: offer.start_date,
-                          notes: offer.notes,
-                        });
-                        setOffer(updated);
-                      }
-
-                      setOfferSaving(false);
-                    }}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-                  >
-                    {offerSaving ? "Saving..." : "Save Draft"}
-                  </button>
-
-                  {/* Send Offer */}
-                  <button
-                    disabled={!offer || offer?.locked}
-                    onClick={async () => {
-                      const sent = await sendOffer(offer.id);
-                      setOffer(sent);
-                    }}
-                    className="w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
-                  >
-                    Send Offer
-                  </button>
-
-                  {/* Lock Offer */}
-                  <button
-                    disabled={!offer || offer?.locked}
-                    onClick={async () => {
-                      const locked = await lockOffer(offer.id);
-                      setOffer(locked);
-                    }}
-                    className="w-full bg-gray-700 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"
-                  >
-                    Lock Offer
-                  </button>
-                </div>
-              </>
+            {exportSuccess && (
+              <span className="flex items-center justify-center gap-2">
+                ✓ PDF Ready
+              </span>
             )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          </button>
+
+        </div>
+      </>
+    )}
+  </div>
+)}

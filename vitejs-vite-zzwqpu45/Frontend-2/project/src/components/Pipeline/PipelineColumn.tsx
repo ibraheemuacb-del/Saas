@@ -15,6 +15,8 @@ export default function PipelineColumn({
 }: PipelineColumnProps) {
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: stage });
 
+  const isEmpty = candidates.length === 0; // ⭐ NEW
+
   return (
     <div
       ref={setDropRef}
@@ -23,13 +25,42 @@ export default function PipelineColumn({
         isOver ? "bg-blue-50 border-blue-300 shadow-md" : "bg-gray-50 border-gray-200"
       }`}
     >
-      <h2 className="text-lg font-semibold mb-4 capitalize">{stage}</h2>
+      <h2 className="text-lg font-semibold mb-4 capitalize flex items-center justify-between">
+        {stage}
 
-      <div className="flex flex-col gap-3">
-        {candidates.map((candidate) => (
-          <DraggableCandidate key={candidate.id} candidate={candidate} onOpen={onOpen} />
-        ))}
-      </div>
+        {/* ⭐ COLUMN HEADER COUNT */}
+        <span className="inline-flex items-center justify-center text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+          {candidates.length}
+        </span>
+      </h2>
+
+      {/* ⭐ EMPTY STATE VISUAL */}
+      {isEmpty ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div
+            className="
+              text-center 
+              px-3 py-4 
+              rounded-md 
+              border border-dashed border-slate-300 
+              bg-white 
+              text-xs text-slate-500
+            "
+          >
+            No candidates in this stage.
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {candidates.map((candidate) => (
+            <DraggableCandidate
+              key={candidate.id}
+              candidate={candidate}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
